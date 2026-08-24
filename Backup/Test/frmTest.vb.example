@@ -1,0 +1,826 @@
+Imports System.Xml
+Imports System
+Imports System.Security.Permissions
+Imports System.Management
+Imports System.Xml.Serialization
+Imports System.IO
+
+Public Class frmTest
+    Private Declare Unicode Function ConvertStringSidToSidW Lib "advapi32.dll" (ByVal StringSID As String, ByRef SID As IntPtr) As Boolean
+    Private Declare Unicode Function LookupAccountSidW Lib "advapi32.dll" (ByVal lpSystemName As String, ByVal SID As IntPtr, ByVal Name As Text.StringBuilder, ByRef cbName As Long, ByVal DomainName As Text.StringBuilder, ByRef cbDomainName As Long, ByRef psUse As Integer) As Boolean
+
+    Public CurrentUserlist As clsUserInfoList
+    Public PreviousUserList As clsUserInfoList
+    Dim strOperatingSystem As String = My.Computer.Info.OSFullName
+    Dim strComputername As String = My.Computer.Name
+    Dim strModelNumber As String = "UNKNOWN"
+    Dim strSerialNumber As String = "UNKNOWN"
+    Dim strManufacturer As String = "UNKNOWN"
+    Dim strSitename As String = "UNKNOWN"
+    Public lngTimezoneOffsetMinutes As Long
+    Public UserInfo() As clsUserInfo
+    Public colLoggedOnUserList As New clsUserInfoList
+    Public colLoggedOffUserList As New clsUserInfoList
+    Public WithEvents timTimer As New Timers.Timer(60000)
+    Private WithEvents SecurityLog As EventLog
+
+    Private Sub EntryWritten(ByVal sender As Object, ByVal LogEntry As System.Diagnostics.EntryWrittenEventArgs)
+        Dim strEntryType As String = ""
+        Dim strErrorLogMessage As String = ""
+        Dim oUser As New clsUserInfo
+        Dim strErrorLogMessageParts() As String
+        Dim mstrUsername As String = ""
+        Dim mstrDomainname As String = ""
+        Dim mstrDescription As String = ""
+        Dim mstrLogonTypeID As String = ""
+        Dim mstrLogonType As String = ""
+        Dim mstrEventID As String = ""
+        Dim mstrLogonServer As String = "[UNKNOWN]"
+        Dim mstrLocalLogonDateTime As String = ""
+        Dim mstrLocalLogoffDateTime As String = ""
+        Dim mstrRemoteIPAddress As String = "[UNKNOWN REMOTE IP ADDRESS]"
+        Dim mstrRemoteWorkstationName As String = "[UNKNOWN WORKSTATION NAME]"
+        Dim mstrRemoteSessionName As String = "[UNKNOWN REMOTE SESSION NAME]"
+        Dim bWriteLog As Boolean = False
+        Dim strOffsetSign As String = "+"
+
+        Select Case LogEntry.Entry.EntryType
+            Case EventLogEntryType.Information
+                strEntryType = "Information"
+            Case EventLogEntryType.Error
+                strEntryType = "Error"
+            Case EventLogEntryType.SuccessAudit
+                strEntryType = "Success"
+            Case EventLogEntryType.FailureAudit
+                strEntryType = "Failure"
+            Case EventLogEntryType.Warning
+                strEntryType = "Warning"
+        End Select
+
+            strErrorLogMessage = LogEntry.Entry.Message
+
+            'Turn the entry into something we know and understand
+            strErrorLogMessage = Trim(Replace(strErrorLogMessage, vbTab, ""))
+            strErrorLogMessage = Trim(Replace(strErrorLogMessage, Chr(10), ""))
+            strErrorLogMessage = Trim(Replace(strErrorLogMessage, Chr(13) & Chr(13), "__"))
+            strErrorLogMessage = Trim(Replace(strErrorLogMessage, "__", Chr(13)))
+
+            strErrorLogMessageParts = Split(strErrorLogMessage, Chr(13))
+
+            If strErrorLogMessageParts.Length = 1 Then
+                strErrorLogMessageParts = Split(strErrorLogMessage, ",")
+            End If
+
+            mstrEventID = LogEntry.Entry.InstanceId.ToString
+
+            Select Case Trim(mstrEventID)
+                Case "528", "4624" ' Logon
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    mstrUsername = Replace(strErrorLogMessageParts(1), "User Name:", "")
+                    mstrDomainname = Replace(strErrorLogMessageParts(2), "Domain:", "")
+                    mstrLogonTypeID = Replace(strErrorLogMessageParts(4), "Logon Type:", "")
+                    mstrRemoteWorkstationName = ""
+                    mstrRemoteIPAddress = Replace(strErrorLogMessageParts(14), "Source Network Address:", "")
+                    bWriteLog = True
+
+                    Select Case Trim(mstrLogonTypeID)
+                        Case "0"
+                            mstrLogonType = "SYSTEM"
+                            mstrDescription = "Successful Logon by the SYSTEM Account (Event ID " & Trim(mstrEventID) & ")"
+                        Case "2"
+                            mstrLogonType = "Interactive"
+                            mstrDescription = "Successful Logon to local console or with RUNAS (Event ID " & Trim(mstrEventID) & ")"
+                        Case "3"
+                            mstrLogonType = "Network"
+                            mstrDescription = "Successful Network connection to a shared resource (Event ID " & Trim(mstrEventID) & ")"
+                        Case "4"
+                            mstrLogonType = "Batch"
+                            mstrDescription = "Successful Logon by a Batch Process or Scheduled Task (Event ID " & Trim(mstrEventID) & ")"
+                        Case "5"
+                            mstrLogonType = "Service"
+                            mstrDescription = "Successful Logon by a Service (Event ID " & Trim(mstrEventID) & ")"
+                        Case "6"
+                            mstrLogonType = "Proxy"
+                            mstrDescription = "Successful Logon.  LogonType=6 (Proxy) (Event ID " & Trim(mstrEventID) & ")"
+                        Case "7"
+                            mstrLogonType = "Unlock"
+                            mstrDescription = "Successful Workstation Unlock (Event ID " & Trim(mstrEventID) & ")"
+                        Case "8"
+                            mstrLogonType = "NetworkClearText"
+                            mstrDescription = "Successful Logon via ASP script or IIS Basic Authentication (Event ID " & Trim(mstrEventID) & ")"
+                        Case "9"
+                            mstrLogonType = "NewCredentials"
+                            mstrDescription = "Successful Logon with RUNAS netonly (Event ID " & Trim(mstrEventID) & ")"
+                        Case "10"
+                            mstrLogonType = "RemoteInteractive"
+                            mstrDescription = "Successful Logon via Terminal Services, Remote Desktop or Remote Assistance (Event ID " & Trim(mstrEventID) & ")"
+                        Case "11"
+                            mstrLogonType = "CachedInteractive"
+                            mstrDescription = "Successful Logon with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                        Case "12"
+                            mstrLogonType = "RemoteInteractive"
+                            mstrDescription = "Successful Logon via Terminal Services, Remote Desktop or Remote Assistance (Event ID " & Trim(mstrEventID) & ")"
+                        Case "13"
+                            mstrLogonType = "CachedUnlock"
+                            mstrDescription = "Successful Workstation Unlock with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                    End Select
+                Case "529", "4625"
+                    mstrDescription = "Logon failure - Unknown username or bad password (Event ID " & Trim(mstrEventID) & ")"
+                    mstrUsername = Replace(strErrorLogMessageParts(2), "User Name:", "")
+                    mstrDomainname = Replace(strErrorLogMessageParts(3), "Domain:", "")
+                    mstrLogonTypeID = Replace(strErrorLogMessageParts(4), "Logon Type:", "")
+                    mstrRemoteIPAddress = Replace(strErrorLogMessageParts(13), "Source Network Address:", "")
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                    Select Case Trim(mstrLogonTypeID)
+                        Case "0"
+                            mstrLogonType = "SYSTEM"
+                            mstrDescription = "Logon failure by the SYSTEM Account (Event ID " & Trim(mstrEventID) & ")"
+                        Case "2"
+                            mstrLogonType = "Interactive"
+                            mstrDescription = "Logon failure (Unknown username or bad password) from local console or with RUNAS (Event ID " & Trim(mstrEventID) & ")"
+                        Case "3"
+                            mstrLogonType = "Network"
+                            mstrDescription = "Logon failure (Unknown username or bad password) disconnecting from a shared resource (Event ID " & Trim(mstrEventID) & ")"
+                        Case "4"
+                            mstrLogonType = "Batch"
+                            mstrDescription = "Logon failure (Unknown username or bad password) by a Batch Process or Scheduled Task (Event ID " & Trim(mstrEventID) & ")"
+                        Case "5"
+                            mstrLogonType = "Service"
+                            mstrDescription = "Logon failure (Unknown username or bad password) by a Service (Event ID " & Trim(mstrEventID) & ")"
+                        Case "6"
+                            mstrLogonType = "Proxy"
+                            mstrDescription = "Logon failure (Unknown username or bad password).  LogonType=6 (Proxy) (Event ID " & Trim(mstrEventID) & ")"
+                        Case "7"
+                            mstrLogonType = "Unlock"
+                            mstrDescription = "Logon failure (Unknown username or bad password) during Workstation Unlock (Event ID " & Trim(mstrEventID) & ")"
+                        Case "8"
+                            mstrLogonType = "NetworkClearText"
+                            mstrDescription = "Logon failure (Unknown username or bad password) via ASP script or IIS Basic Authentication (Event ID " & Trim(mstrEventID) & ")"
+                        Case "9"
+                            mstrLogonType = "NewCredentials"
+                            mstrDescription = "Logon failure (Unknown username or bad password) with RUNAS netonly (Event ID " & Trim(mstrEventID) & ")"
+                        Case "10", "12"
+                            mstrLogonType = "RemoteInteractive"
+                            mstrDescription = "Logon failure (Unknown username or bad password) from Terminal Services, Remote Desktop or Remote Assistance (Event ID " & Trim(mstrEventID) & ")"
+                        Case "11"
+                            mstrLogonType = "CachedInteractive"
+                            mstrDescription = "Logon failure (Unknown username or bad password) with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                        Case "13"
+                            mstrLogonType = "CachedUnlock"
+                            mstrDescription = "Logon failure (Unknown username or bad password) during Workstation Unlock with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                    End Select
+                Case "530", "4626"
+                    mstrDescription = "Logon failure - Logon time restriction violation (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "531", "4627"
+                    mstrDescription = "Logon failure - Account currently disabled (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "532", "4628"
+                    mstrDescription = "Logon failure - Account expired (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "533", "4629"
+                    mstrDescription = "Logon failure - Account not allowed to logon to this workstation (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "534", "4630"
+                    mstrDescription = "Logon failure - Inadequate rights (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "535", "4631"
+                    mstrDescription = "Logon failure - Password expired (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "536", "4632"
+                    mstrDescription = "Logon failure - Netlogon Service not running (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "537", "4633"
+                    mstrDescription = "Logon failure - Unexpected error (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLogonTypeID = Replace(strErrorLogMessageParts(4), "Logon Type:", "")
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                    Select Case Trim(mstrLogonTypeID)
+                        Case "0"
+                            mstrLogonType = "SYSTEM"
+                            mstrDescription = "Logon failure by the SYSTEM Account (Event ID " & Trim(mstrEventID) & ")"
+                        Case "2"
+                            mstrLogonType = "Interactive"
+                            mstrDescription = "Logon failure from local console or with RUNAS (Event ID " & Trim(mstrEventID) & ")"
+                        Case "3"
+                            mstrLogonType = "Network"
+                            mstrDescription = "Logon failure disconnecting from a shared resource (Event ID " & Trim(mstrEventID) & ")"
+                        Case "4"
+                            mstrLogonType = "Batch"
+                            mstrDescription = "Logon failure by a Batch Process or Scheduled Task (Event ID " & Trim(mstrEventID) & ")"
+                        Case "5"
+                            mstrLogonType = "Service"
+                            mstrDescription = "Logon failure by a Service (Event ID " & Trim(mstrEventID) & ")"
+                        Case "6"
+                            mstrLogonType = "Proxy"
+                            mstrDescription = "Logon failure.  LogonType=6 (Proxy) (Event ID " & Trim(mstrEventID) & ")"
+                        Case "7"
+                            mstrLogonType = "Unlock"
+                            mstrDescription = "Logon failure during Workstation Unlock (Event ID " & Trim(mstrEventID) & ")"
+                        Case "8"
+                            mstrLogonType = "NetworkClearText"
+                            mstrDescription = "Logon failure via ASP script or IIS Basic Authentication (Event ID " & Trim(mstrEventID) & ")"
+                        Case "9"
+                            mstrLogonType = "NewCredentials"
+                            mstrDescription = "Logon failure with RUNAS netonly (Event ID " & Trim(mstrEventID) & ")"
+                        Case "10", "12"
+                            mstrLogonType = "RemoteInteractive"
+                            mstrDescription = "Logon failure from Terminal Services, Remote Desktop or Remote Assistance (Event ID " & Trim(mstrEventID) & ")"
+                        Case "11"
+                            mstrLogonType = "CachedInteractive"
+                            mstrDescription = "Logon failure with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                        Case "13"
+                            mstrLogonType = "CachedUnlock"
+                            mstrDescription = "Logon failure during Workstation Unlock with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                    End Select
+                Case "538", "4634" ' Logoff
+                    'mstrDescription = "User initiated logoff (Event ID " & Trim(mstrEventID) & ")"
+                    mstrUsername = Replace(strErrorLogMessageParts(1), "User Name:", "")
+                    mstrDomainname = Replace(strErrorLogMessageParts(2), "Domain:", "")
+                    mstrLogonTypeID = Replace(strErrorLogMessageParts(4), "Logon Type:", "")
+                    mstrLocalLogoffDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                    Select Case Trim(mstrLogonTypeID)
+                        Case "0"
+                            mstrLogonType = "SYSTEM"
+                            mstrDescription = "Successful Logoff by the SYSTEM Account (Event ID " & Trim(mstrEventID) & ")"
+                        Case "2"
+                            mstrLogonType = "Interactive"
+                            mstrDescription = "Successful Logoff from local console or with RUNAS (Event ID " & Trim(mstrEventID) & ")"
+                        Case "3"
+                            mstrLogonType = "Network"
+                            mstrDescription = "Successful Network disconnection from a shared resource (Event ID " & Trim(mstrEventID) & ")"
+                        Case "4"
+                            mstrLogonType = "Batch"
+                            mstrDescription = "Successful Logoff by a Batch Process or Scheduled Task (Event ID " & Trim(mstrEventID) & ")"
+                        Case "5"
+                            mstrLogonType = "Service"
+                            mstrDescription = "Successful Logoff by a Service (Event ID " & Trim(mstrEventID) & ")"
+                        Case "6"
+                            mstrLogonType = "Proxy"
+                            mstrDescription = "Successful Logoff.  LogonType=6 (Proxy) (Event ID " & Trim(mstrEventID) & ")"
+                        Case "7"
+                            mstrLogonType = "Unlock"
+                            mstrDescription = "Successful Workstation Unlock (Event ID " & Trim(mstrEventID) & ")"
+                        Case "8"
+                            mstrLogonType = "NetworkClearText"
+                            mstrDescription = "Successful Logoff via ASP script or IIS Basic Authentication (Event ID " & Trim(mstrEventID) & ")"
+                        Case "9"
+                            mstrLogonType = "NewCredentials"
+                            mstrDescription = "Successful Logoff with RUNAS netonly (Event ID " & Trim(mstrEventID) & ")"
+                        Case "10", "12"
+                            mstrLogonType = "RemoteInteractive"
+                            mstrDescription = "Successful Logoff from Terminal Services, Remote Desktop or Remote Assistance (Event ID " & Trim(mstrEventID) & ")"
+                        Case "11"
+                            mstrLogonType = "CachedInteractive"
+                            mstrDescription = "Successful Logoff with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                        Case "13"
+                            mstrLogonType = "CachedUnlock"
+                            mstrDescription = "Successful Workstation Unlock with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                    End Select
+                Case "539", "644", "4635", "4740"
+                    mstrDescription = "Logon failure - Account locked out (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "540", "4636" ' Network Logon
+                    mstrRemoteIPAddress = Replace(strErrorLogMessageParts(14), "Source Network Address:", "")
+                    mstrUsername = Replace(strErrorLogMessageParts(1), "User Name:", "")
+                    mstrDomainname = Replace(strErrorLogMessageParts(2), "Domain:", "")
+                    mstrLogonTypeID = Replace(strErrorLogMessageParts(4), "Logon Type:", "")
+                    mstrRemoteWorkstationName = Replace(strErrorLogMessageParts(7), "Workstation Name:", "")
+                    mstrRemoteIPAddress = Replace(strErrorLogMessageParts(14), "Source Network Address:", "")
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                    Select Case Trim(mstrLogonTypeID)
+                        Case "0"
+                            mstrLogonType = "SYSTEM"
+                            mstrDescription = "Successful Network Logon by the SYSTEM Account (Event ID " & Trim(mstrEventID) & ")"
+                        Case "2"
+                            mstrLogonType = "Interactive"
+                            mstrDescription = "Successful Network Logon to local console or with RUNAS (Event ID " & Trim(mstrEventID) & ")"
+                        Case "3"
+                            mstrLogonType = "Network"
+                            mstrDescription = "Successful Network connection to a shared resource (Event ID " & Trim(mstrEventID) & ")"
+                        Case "4"
+                            mstrLogonType = "Batch"
+                            mstrDescription = "Successful Network Logon by a Batch Process or Scheduled Task (Event ID " & Trim(mstrEventID) & ")"
+                        Case "5"
+                            mstrLogonType = "Service"
+                            mstrDescription = "Successful Network Logon by a Service (Event ID " & Trim(mstrEventID) & ")"
+                        Case "6"
+                            mstrLogonType = "Proxy"
+                            mstrDescription = "Successful Network Logon.  LogonType=6 (Proxy) (Event ID " & Trim(mstrEventID) & ")"
+                        Case "7"
+                            mstrLogonType = "Unlock"
+                            mstrDescription = "Successful Network Workstation Unlock (Event ID " & Trim(mstrEventID) & ")"
+                        Case "8"
+                            mstrLogonType = "NetworkClearText"
+                            mstrDescription = "Successful Network Logon via ASP script or IIS Basic Authentication (Event ID " & Trim(mstrEventID) & ")"
+                        Case "9"
+                            mstrLogonType = "NewCredentials"
+                            mstrDescription = "Successful Network Logon with RUNAS netonly (Event ID " & Trim(mstrEventID) & ")"
+                        Case "10"
+                            mstrLogonType = "RemoteInteractive"
+                            mstrDescription = "Successful Network Logon via Terminal Services, Remote Desktop or Remote Assistance (Event ID " & Trim(mstrEventID) & ")"
+                        Case "11"
+                            mstrLogonType = "CachedInteractive"
+                            mstrDescription = "Successful Network Logon with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                        Case "12"
+                            mstrLogonType = "RemoteInteractive"
+                            mstrDescription = "Successful Network Logon via Terminal Services, Remote Desktop or Remote Assistance (Event ID " & Trim(mstrEventID) & ")"
+                        Case "13"
+                            mstrLogonType = "CachedUnlock"
+                            mstrDescription = "Successful Network Workstation Unlock with cached credentials (Event ID " & Trim(mstrEventID) & ")"
+                    End Select
+                Case "551", "4647" ' Logoff
+                    mstrDescription = "User initiated logoff (Event ID " & Trim(mstrEventID) & ")"
+                    mstrUsername = Replace(strErrorLogMessageParts(1), "User Name:", "")
+                    mstrDomainname = Replace(strErrorLogMessageParts(2), "Domain:", "")
+                    mstrLocalLogoffDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "552", "4648"
+                    mstrDescription = "Logon attempt using explicit credentials (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLogonTypeID = ""
+                    mstrUsername = Replace(strErrorLogMessageParts(7), "Target User Name:", "")
+                    mstrDomainname = Replace(strErrorLogMessageParts(8), "Target Domain:", "")
+                    mstrRemoteIPAddress = Replace(strErrorLogMessageParts(14), "Source Network Address:", "")
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "627", "4723"
+                    mstrDescription = "Logon failure - Account has an expired password, and the user is attempting to change it during logon (Event ID " & Trim(mstrEventID) & ")"
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "680"
+                    mstrDescription = "Logon Attempt (Event ID " & Trim(mstrEventID) & ")"
+                    mstrUsername = Replace(strErrorLogMessageParts(1), "User Name:", "")
+                    mstrDomainname = strComputername
+                    mstrRemoteWorkstationName = Replace(strErrorLogMessageParts(2), "Source Workstation:", "")
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+                Case "682"
+                    mstrDescription = "Session reconnected to Local Terminal Server (Event ID " & Trim(mstrEventID) & ")"
+                    mstrUsername = Replace(strErrorLogMessageParts(1), "User Name:", "")
+                    mstrDomainname = Replace(strErrorLogMessageParts(2), "Domain:", "")
+                    mstrRemoteSessionName = Replace(strErrorLogMessageParts(4), "Session Name:", "")
+                    mstrRemoteWorkstationName = Replace(strErrorLogMessageParts(5), "Client Name:", "")
+                    mstrRemoteIPAddress = Replace(strErrorLogMessageParts(6), "Client Address:", "")
+                    mstrLocalLogonDateTime = LogEntry.Entry.TimeGenerated
+                    bWriteLog = True
+            End Select
+
+        If Not bWriteLog Then Exit Sub
+
+        'If (mstrUsername = "REDACTED" And mstrDomainname = "NT AUTHORITY") Or mstrUsername.EndsWith("$") Or mstrUsername = "" Then
+        ' Disregard :
+        '     SYSTEM logons and logoffs
+        '     Connections from other computers 
+        '     Connections not fully established
+        'Else
+        ' Populate a userinfo object
+        oUser.Username = mstrUsername
+        oUser.Computername = strComputername
+        oUser.Domainname = mstrDomainname
+        oUser.EventDescription = mstrDescription
+        'oUser.LogonServer = strlogonserver
+        oUser.ModelNumber = strModelNumber
+        oUser.SerialNumber = strSerialNumber
+        oUser.Sitename = strSitename
+        If lngTimezoneOffsetMinutes > -1 Then
+            strOffsetSign = "+"
+        Else
+            strOffsetSign = "-"
+        End If
+
+        oUser.UTCLogonDateTime = CStr(DateAdd(DateInterval.Minute, -CDbl(lngTimezoneOffsetMinutes), CDate(mstrLocalLogonDateTime)) & strOffsetSign & CStr(lngTimezoneOffsetMinutes))
+        oUser.UTCLogoffDateTime = CStr(DateAdd(DateInterval.Minute, -CDbl(lngTimezoneOffsetMinutes), CDate(mstrLocalLogoffDateTime)) & strOffsetSign & CStr(lngTimezoneOffsetMinutes))
+        oUser.RemoteSessionName = mstrRemoteSessionName & " (" & mstrRemoteIPAddress & ")"
+        oUser.RemoteClientName = mstrRemoteWorkstationName
+
+        oUser.Version = "1.6"
+
+        ' Only save the logfile if there is more than [MinimumDiskSpaceMbBeforeLogging] MB available on the C: drive
+        'If booOKToCreateLogFile Then
+        oUser.Serialize()
+        'Else
+        'strErrorLogMessage = "Unable to add Activity for User " & oUser.Username & " due to insufficient diskspace.  This information has been lost."
+        'WriteToEventLog(strErrorLogMessage, "Activity Log Client", EventLogEntryType.Warning)
+        'End If
+        'End If
+        
+
+    End Sub
+
+    ' Get the list of files to process
+    Private Sub CopyLogsToDC()
+        Dim strResults() As String
+        Dim strDCName As String = ""
+        Dim strDestination As String = ""
+        Dim strCompletePath As String = ""
+        Dim strFilename As String = ""
+        Dim strSourcePath As String = ""
+        Dim booSuccess As Boolean = False
+
+        ' Create an instance of the XmlSerializer specifying type.
+        Dim Serializer As New XmlSerializer(GetType(clsUserInfo))
+
+        ' Get a list of files to copy
+        strResults = IO.Directory.GetFiles(My.Application.Info.DirectoryPath & "\Logs", "*.xml")
+
+        ' For each of these files...
+        For i As Integer = 0 To UBound(strResults)
+            strCompletePath = strResults(i).ToString
+            strSourcePath = Microsoft.VisualBasic.Left(strCompletePath, InStrRev(strCompletePath, "\"))
+            strFilename = Microsoft.VisualBasic.Right(strCompletePath, Len(strCompletePath) - InStrRev(strCompletePath, "\"))
+            ' Create a TextReader to read the file. 
+            Dim fs As New FileStream(strCompletePath, FileMode.Open)
+            Dim reader As New StreamReader(fs)
+
+            ' Declare an object variable of the type to be deserialized.
+            Dim oDeserializedObject As clsUserInfo
+
+            ' Use the Deserialize method to restore the object's state.
+            oDeserializedObject = CType(Serializer.Deserialize(reader), clsUserInfo)
+
+            ' Close the file.
+            reader.Close()
+
+            ' Now send this to the DC
+            booSuccess = CopyToDC(strFilename, strSourcePath)
+            If booSuccess Then
+                Console.WriteLine(strFilename & ": SUCCESS!")
+            Else
+                Console.WriteLine("A valid location to send the activity log file could not be found.")
+            End If
+        Next
+
+    End Sub
+
+    Private Function CopyToDC(ByVal strFilename As String, ByVal strSourcePath As String) As Boolean '  TRUE = SUCCESS
+        Dim strSiteRDN As String = ""
+        Dim objRootDSE As Object
+        Dim strConfigurationNC As String = ""
+        Dim strServersPath As String = ""
+        Dim objServersContainer As Object
+        Dim objServer As Object
+        Dim colServers As New Collections.Specialized.StringCollection
+        Dim strServername As String = ""
+        Dim strDestination As String = ""
+
+        strSiteRDN = "cn=" & strSitename
+
+        If strSitename = "" Then
+            strSitename = "[LOCAL LOGON]"
+        Else
+            Try
+                objRootDSE = GetObject("LDAP://RootDSE")
+                strConfigurationNC = objRootDSE.Get("configurationNamingContext")
+
+                strServersPath = "LDAP://cn=Servers," & strSiteRDN & ",cn=Sites," & strConfigurationNC
+                objServersContainer = GetObject(strServersPath)
+
+                For Each objServer In objServersContainer
+                    strServername = Replace(objServer.Name.ToString.ToLower, "cn=", "")
+                    Console.WriteLine("Found Site Server: " & strServername)
+                    ' Firstly, ping a Server to see if it is up.  
+                    Try
+                        If My.Computer.Network.Ping(strServername) Then
+                            ' Attempt to copy the log file to this server
+
+                            strDestination = "\\" & strServername & "\ActivityLog$"
+                            Try
+                                My.Computer.Network.UploadFile(strSourcePath & strFilename, strDestination & "\" & strFilename)
+                                My.Computer.FileSystem.DeleteFile(strSourcePath & strFilename)
+                                Console.WriteLine("SUCCESS!")
+                                Return True
+                            Catch ex As Exception
+                                ' No, this did not work
+                                Console.WriteLine("Failed to copy logfile to " & strServername)
+                            End Try
+                        Else
+                            Console.WriteLine("Server: " & strServername & " is not contactable")
+                        End If
+                    Catch
+                        ' A server by this name could not be resolved.
+                        Console.WriteLine("This Server name was not resolved to an IP Address!!")
+                    End Try
+                Next
+            Catch ex As Exception
+
+            End Try
+        End If
+
+        Console.WriteLine("A valid ActivityLog$ share could not be found!!")
+        Return False
+
+    End Function
+
+    ' Get the list of files to process
+    Private Sub CopyToWebService()
+        Dim strResults() As String
+        ' Create an instance of the XmlSerializer specifying type.
+        Dim Serializer As New XmlSerializer(GetType(clsUserInfo))
+
+        ' Get a list of files to copy
+        'strResults = IO.Directory.GetFiles(My.Application.Info.DirectoryPath & "\Logs", "*.xml")
+        strResults = IO.Directory.GetFiles("H:\Logs", "*.xml")
+
+        ' For each of these files...
+        For i As Integer = 0 To UBound(strResults)
+            ' Create a TextReader to read the file. 
+            Dim fs As New FileStream(strResults(i).ToString, FileMode.Open)
+            Dim reader As New StreamReader(fs)
+
+            ' Declare an object variable of the type to be deserialized.
+            Dim oDeserializedObject As clsUserInfo
+
+            ' Use the Deserialize method to restore the object's state.
+            oDeserializedObject = CType(Serializer.Deserialize(reader), clsUserInfo)
+
+            ' Close the file.
+            reader.Close()
+
+            ' Now send this to the Web Service
+            Dim oService As New WebService.Service
+            oService.SubmitLog(oDeserializedObject.ToString, strResults(i).ToString)
+
+            ' Check the Web Service to ensure the file was copied correctly
+
+            ' Yes:  Delete the local file
+            ' No:   Don't delete the file
+        Next
+
+    End Sub
+
+    Private Sub DoStart()
+        GetComputerInfo()
+
+        GetUserInfo()
+    End Sub
+
+    Private Sub GetComputerInfo()
+        strOperatingSystem = My.Computer.Info.OSFullName
+        strComputername = System.Net.Dns.GetHostName
+
+        Try
+            strSitename = System.DirectoryServices.ActiveDirectory.ActiveDirectorySite.GetComputerSite.Name.ToString
+        Catch
+            strSitename = "UNKNOWN"
+        End Try
+
+        ' Get TimeZone offset
+        lngTimezoneOffsetMinutes = DateDiff(DateInterval.Minute, My.Computer.Clock.GmtTime, My.Computer.Clock.LocalTime)
+
+        GetPCSerial()
+        GetPCModel()
+
+        Try
+            Dim mosSearcher As New System.Management.ManagementObjectSearcher("SELECT * FROM Win32_ComputerSystem")
+            Dim moWin32_SystemEnclosure As System.Management.ManagementObject
+            For Each moWin32_SystemEnclosure In mosSearcher.Get()
+                strModelNumber = Trim(moWin32_SystemEnclosure.Item("Model"))
+                strManufacturer = Trim(moWin32_SystemEnclosure.Item("Manufacturer"))
+            Next
+        Catch
+            strModelNumber = ""
+        End Try
+    End Sub
+
+    Private Sub GetUserInfo()
+        Dim i As Integer = 0
+
+        GetCurrentUserList()
+        CompareLists()
+
+        PreviousUserList = CurrentUserlist
+        CopyLogsToDC()
+
+    End Sub
+
+    Private Sub GetCurrentUserList()
+        Dim oManagementClass As New ManagementClass("Win32_Process")
+        Dim oManagementObjectColl As ManagementObjectCollection = oManagementClass.GetInstances
+        Dim oManagementObject As ManagementObject
+        Dim processDomain As String = ""
+        Dim processUser As String = ""
+        Dim strSID As String = ""
+        Dim DomainAndUsername As String = ""
+        Dim oNewUser As New clsUserInfo
+
+        CurrentUserlist = New clsUserInfoList
+        For Each oManagementObject In oManagementObjectColl
+
+            Dim oProcess As New ROOT.CIMV2.Process(oManagementObject)
+            oProcess.GetOwner(processDomain, processUser)
+
+            If (oProcess.Name.Trim.ToLower = "explorer.exe") Or (oProcess.Name.Trim.ToLower = "cmd.exe") Then ' Found a user
+
+                DomainAndUsername = processDomain & "\" & processUser
+
+                ' Get the user's SID
+                oProcess.GetOwnerSid(strSID)
+
+                ' Set specifics
+                oNewUser.Username = processUser
+                oNewUser.Computername = strComputername
+                oNewUser.Domainname = processDomain
+                oNewUser.OperatingSystemName = strOperatingSystem
+                oNewUser.ModelNumber = strModelNumber
+                oNewUser.SerialNumber = strSerialNumber
+                oNewUser.Sitename = strSitename
+
+                ' Set default event.  This may change when we determine differences
+                oNewUser.EventDescription = "Application Startup"
+
+                ' Determine details
+                oNewUser.DetermineLogonData(strSID)
+                oNewUser.DetermineLastLogonDateTime()
+
+                ' Save Data
+                If Not CurrentUserlist.Contains(oNewUser) Then
+                    CurrentUserlist.Add(oNewUser.Clone)
+                End If
+
+                ' Clear previous values
+                oNewUser.Clear()
+                DomainAndUsername = ""
+                strSID = ""
+            End If
+        Next
+    End Sub
+
+    Private Sub CompareLists()
+        Dim oUser As clsUserInfo
+
+        If PreviousUserList Is Nothing Then
+            ' No previous users
+            PreviousUserList = New clsUserInfoList
+            For i As Integer = 0 To CurrentUserlist.Count - 1
+                oUser = CurrentUserlist.Item(i)
+                oUser.EventDescription = "UserLoggedOnAtServiceStartup"
+                colLoggedOnUserList.Add(oUser)
+                oUser.Serialize()
+            Next
+        Else
+            For i As Integer = 0 To CurrentUserlist.Count - 1
+                oUser = CurrentUserlist.Item(i)
+
+                If Not PreviousUserList.Contains(oUser) Then
+                    oUser.EventDescription = "Logon"
+                    Console.WriteLine(oUser.Username & " logged on")
+                    colLoggedOnUserList.Add(oUser)
+                    oUser.Serialize()
+                End If
+            Next
+
+            For i As Integer = 0 To PreviousUserList.Count - 1
+                oUser = PreviousUserList.Item(i)
+
+                If Not CurrentUserlist.Contains(oUser) Then
+                    oUser.EventDescription = "Logoff"
+                    Console.WriteLine(oUser.Username & " logged off")
+                    oUser.DetermineLastLogoffDateTime()
+                    colLoggedOffUserList.Add(oUser)
+                    oUser.Serialize()
+                Else
+
+                End If
+            Next
+        End If
+
+        Console.WriteLine("Current User List:")
+        For i As Integer = 0 To CurrentUserlist.Count - 1
+            Console.WriteLine(CurrentUserlist(i).username)
+        Next
+    End Sub
+
+    Private Sub tmrMain_Tick(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles tmrMain.Tick
+        GetUserInfo()
+    End Sub
+
+    Private Sub GetPCSerial()
+        Dim objs As Object
+        Dim obj As Object
+        Dim WMI As Object
+
+        strSerialNumber = "UNKNOWN"
+
+        Try
+            WMI = GetObject("WinMgmts:")
+            objs = WMI.InstancesOf("Win32_BaseBoard")
+            For Each obj In objs
+                strSerialNumber = obj("SerialNumber").ToString
+            Next
+        Catch ex As Exception
+
+        End Try
+
+    End Sub
+
+    Private Sub GetPCModel()
+        Dim objs As Object
+        Dim obj As Object
+        Dim WMI As Object
+
+        strModelNumber = "UNKNOWN"
+
+        Try
+            WMI = GetObject("WinMgmts:")
+            objs = WMI.InstancesOf("Win32_ComputerSystem")
+            For Each obj In objs
+                strModelNumber = obj.Model.ToString.Trim
+            Next
+        Catch
+        End Try
+    End Sub
+
+    ' Get the list of files to process
+    Private Sub StartOperations()
+        Dim strResults() As String
+        Dim strFilename As String = ""
+
+        ' Create an instance of the XmlSerializer specifying type.
+        Dim Serializer As New XmlSerializer(GetType(clsUserInfo))
+
+        ' Stop the Timer
+        timTimer.Enabled = False
+
+        strResults = IO.Directory.GetFiles(My.Settings.LogfileSourcePath, "*.xml")
+
+        For i As Integer = 0 To UBound(strResults)
+            Dim booSubmitResult As Boolean = False
+            strFilename = strResults(i).ToString
+
+            Dim oXMLDocument As New Xml.XmlDocument
+
+            oXMLDocument.Load(strFilename)
+
+            ' Now send this to the Web Service
+            Dim oWebService As New WebService.Service
+
+            Try
+                Dim strCompletePath As String = strFilename
+                Dim strSourcePath As String = Microsoft.VisualBasic.Left(strCompletePath, InStrRev(strCompletePath, "\"))
+
+                strFilename = Microsoft.VisualBasic.Right(strCompletePath, Len(strCompletePath) - InStrRev(strCompletePath, "\"))
+                booSubmitResult = oWebService.SubmitLog(oXMLDocument.OuterXml, strFilename)
+
+                If booSubmitResult Then
+                    My.Computer.FileSystem.DeleteFile(strCompletePath)
+                    ' Delete the file
+                Else
+                    ' Hmmm an error occured.
+                End If
+            Catch
+                WriteToEventLog("Error submitting file (" & strFilename & ") to Activity Log Web Service", "Log Broker", EventLogEntryType.Warning, "Application")
+            End Try
+        Next
+
+        ' Start the Timer
+        timTimer.Enabled = True
+
+    End Sub
+
+    Private Function WriteToEventLog(ByVal Entry As String, Optional ByVal AppName As String = "Activity Log Web Service", Optional ByVal EventType As EventLogEntryType = EventLogEntryType.Information, Optional ByVal LogName As String = "Application") As Boolean
+        Dim objEventLog As New EventLog()
+
+        Try
+            Try
+                'Register the App as an Event Source
+                If Not Diagnostics.EventLog.SourceExists(AppName) Then
+                    Diagnostics.EventLog.CreateEventSource(AppName, LogName)
+                End If
+            Catch
+                ' An error occured
+            End Try
+
+            objEventLog.Source = AppName
+
+            objEventLog.WriteEntry(Entry, EventType)
+            Return True
+        Catch Ex As Exception
+            Return False
+
+        End Try
+
+    End Function
+
+    Private Sub btnSubmit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnSubmit.Click
+        StartOperations()
+    End Sub
+
+    Private Sub btnCopy_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnCopy.Click
+        Dim oWebService As New WebService.Service
+
+        oWebService.Url = "http://perdev99v/webservice/service.asmx"
+        Console.WriteLine(oWebService.TestService("Hello World"))
+    End Sub
+
+End Class

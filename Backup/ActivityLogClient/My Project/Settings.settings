@@ -1,0 +1,42 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="My" GeneratedClassName="MySettings" UseMySettingsClassName="true">
+  <Profiles />
+  <Settings>
+    <Setting Name="PreferredServer" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="UseEventLog" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="MinimumDiskSpaceMbBeforeLogging" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">10</Value>
+    </Setting>
+    <Setting Name="LogEvent552" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="ExcludedUserListSuccess" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">SYSTEM;NETWORK SERVICE;LOCAL SERVICE;SVCSMS;IUSR_;SVCSQL</Value>
+    </Setting>
+    <Setting Name="PCSerialWMIQuery" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">SELECT * FROM Win32_Bios</Value>
+    </Setting>
+    <Setting Name="PCSerialWMIProperty" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">SerialNumber</Value>
+    </Setting>
+    <Setting Name="PCModelWMIQuery" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">SELECT * FROM Win32_ComputerSystem</Value>
+    </Setting>
+    <Setting Name="PCModelWMIProperty" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">Model</Value>
+    </Setting>
+    <Setting Name="LogEvent538Type3" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="LogEvent540Type3" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="PCManufacturerWMIProperty" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">Manufacturer</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

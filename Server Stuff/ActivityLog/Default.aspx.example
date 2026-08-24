@@ -1,0 +1,187 @@
+<%@ Page Language="VB" AutoEventWireup="false" CodeFile="Default.aspx.vb" Inherits="_Default" Strict="false" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<head runat="server">
+    <title>Logon Activity Log</title>
+    <style type="text/css">
+    body
+    {
+        font-family:    arial,verdana,helvetica;
+        font-size:      8pt;
+    }
+    .Asc
+    {
+        background-image: url(images/Asc.gif);
+        background-repeat:no-repeat;
+        padding-left: 11px;
+    }
+    .Desc
+    {
+        background-image: url(images/Desc.gif);
+        background-repeat:no-repeat;
+        padding-left: 11px;
+    }
+    </style>
+    <script language="javascript" type="text/javascript"">
+    <!--
+    function ShowCalendar(TheControl, TheCalendar)
+    {
+        if (TheControl.checked == true)
+        {
+            TheCalendar.style.display = 'Inline';
+        }
+        else
+        {
+            TheCalendar.style.display = 'none';
+        }
+    }
+    //-->
+    </script>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div>
+            <table>
+                <tr><td colspan="2"><h3>Activity Log</h3></td></tr>
+                <tr><td colspan="2" style="background-color:#101080;color:#ffffff;font-weight:bold;padding:2px;padding-left:5px;">Search parameters</td></tr>
+                <tr>
+                    <td style="width: 200px">Search Text:</td>
+                    <td><asp:TextBox ID="txtSearch" runat="server" Width="195px"></asp:TextBox></td>
+                </tr>
+                <tr>
+                    <td style="width: 200px">Search for:</td>
+                    <td>
+                        <asp:DropDownList ID="cboSearchType" runat="server" Width="90px">
+                            <asp:ListItem>User</asp:ListItem>
+                            <asp:ListItem>Computer</asp:ListItem>
+                            <asp:ListItem>Description</asp:ListItem>
+                            <asp:ListItem>IP</asp:ListItem>
+                        </asp:DropDownList>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 200px">Records Per Page:</td>
+                    <td>
+                        <asp:DropDownList ID="cboRowLimit" runat="server" Width="90px">
+                            <asp:ListItem>10</asp:ListItem>
+                            <asp:ListItem Selected="True">25</asp:ListItem>
+                            <asp:ListItem>50</asp:ListItem>
+                            <asp:ListItem>100</asp:ListItem>
+                        </asp:DropDownList>
+                    </td>
+                </tr>
+                <tr><td style="width: 200px">&nbsp;</td></tr>
+                <tr><td colspan="2" style="background-color:#101080;color:#ffffff;font-weight:bold;padding:2px;padding-left:5px;">Search by date</td></tr>
+                <tr>
+                    <td>Perform date search using:</td>
+                    <td>
+                        <asp:DropDownList ID="cboDateField" runat="server">
+                            <asp:ListItem>Log On date</asp:ListItem>
+                            <asp:ListItem>Log Off date</asp:ListItem>
+                            <asp:ListItem>Both fields</asp:ListItem>
+                        </asp:DropDownList>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="top" style="width: 200px"><asp:CheckBox ID="chkFromDate" runat="server" onclick="ShowCalendar(chkFromDate, FromDate)" Text="Only display events logged after:" /></td>
+                    <td>
+                        <%If chkFromDate.Checked = True Then%>
+                        <div id="FromDate">
+                        <%Else%>
+                        <div id="FromDate" style="display:none">
+                        <%End If%>
+                            <asp:Calendar ID="calStartDate" runat="server" BackColor="White" BorderColor="#999999"
+                                CellPadding="4" DayNameFormat="Shortest" Font-Names="Verdana" Font-Size="8pt"
+                                ForeColor="Black" Height="180px" Width="200px">
+                                <SelectedDayStyle BackColor="#666666" Font-Bold="True" ForeColor="White" />
+                                <TodayDayStyle BackColor="#CCCCCC" ForeColor="Black" />
+                                <SelectorStyle BackColor="#CCCCCC" />
+                                <WeekendDayStyle BackColor="#FFFFCC" />
+                                <OtherMonthDayStyle ForeColor="#808080" />
+                                <NextPrevStyle VerticalAlign="Bottom" />
+                                <DayHeaderStyle BackColor="#CCCCCC" Font-Bold="True" Font-Size="7pt" />
+                                <TitleStyle BackColor="#999999" BorderColor="Black" Font-Bold="True" />
+                            </asp:Calendar>
+                        </div>
+                     </td>
+                </tr>
+                <tr>
+                    <td valign="top" style="width: 200px"><asp:CheckBox ID="chkToDate" runat="server" onclick="ShowCalendar(chkToDate, ToDate)" Text="Only display events logged before:" /></td>
+                    <td>
+                        <%If chkToDate.Checked = True Then%>
+                        <div id="ToDate">
+                        <%Else%>
+                        <div id="ToDate" style="display:none">
+                        <%End If%>
+                            <asp:Calendar ID="calEndDate" runat="server" BackColor="White" BorderColor="#999999"
+                                CellPadding="4" DayNameFormat="Shortest" Font-Names="Verdana" Font-Size="8pt"
+                                ForeColor="Black" Height="180px" Width="200px">
+                                <SelectedDayStyle BackColor="#666666" Font-Bold="True" ForeColor="White" />
+                                <TodayDayStyle BackColor="#CCCCCC" ForeColor="Black" />
+                                <SelectorStyle BackColor="#CCCCCC" />
+                                <WeekendDayStyle BackColor="#FFFFCC" />
+                                <OtherMonthDayStyle ForeColor="#808080" />
+                                <NextPrevStyle VerticalAlign="Bottom" />
+                                <DayHeaderStyle BackColor="#CCCCCC" Font-Bold="True" Font-Size="7pt" />
+                                <TitleStyle BackColor="#999999" BorderColor="Black" Font-Bold="True" />
+                            </asp:Calendar>
+                        </div>
+                    </td>
+                </tr>
+                <tr><td style="width: 200px">&nbsp;</td></tr>
+                <tr>
+                    <td colspan="2" align="center">
+                        <asp:Button ID="cmdSearch" runat="server" Text="Search" />
+                    </td>
+                </tr>
+                <tr><td style="width: 200px">&nbsp;</td></tr>
+            </table>
+            <table width="1000">
+                <tr>
+                    <td style="background-color:#101080;color:#ffffff;font-weight:bold;padding:2px;padding-left:5px;">
+                        Search Results
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <asp:GridView ID="GridView1" runat="server" AllowSorting="True" HeaderStyle-BackColor="Beige" AutoGenerateColumns="False" DataSourceID="SqlDataSource1" AllowPaging="True" PageSize="20" BackColor="#F0F0F0" EmptyDataText="No matching records were found" HeaderStyle-HorizontalAlign="Left" EmptyDataRowStyle-Width="1000">
+                            <HeaderStyle BackColor="#101080" ForeColor="White" />
+                            <AlternatingRowStyle BackColor="#E0E0E0" />
+                            <Columns>
+                                <asp:BoundField DataField="Username" HeaderText="User" SortExpression="Username" HtmlEncode="false">
+                                    <ItemStyle Width="100px" />
+                                </asp:BoundField>
+                                <asp:BoundField DataField="Domainname" HeaderText="Domain" SortExpression="Domainname" >
+                                    <ItemStyle Width="90px" />
+                                </asp:BoundField>
+                                <asp:BoundField DataField="EventDescription" HeaderText="Description" SortExpression="EventDescription" >
+                                    <ItemStyle Width="250px" />
+                                </asp:BoundField>
+                                <asp:BoundField DataField="ComputerName" HeaderText="Computer" SortExpression="ComputerName" >
+                                    <ItemStyle Width="100px" />
+                                </asp:BoundField>
+                                <asp:BoundField DataField="UTCLogon" HeaderText="Log on" SortExpression="UTCLogon" >
+                                    <ItemStyle Width="70px" />
+                                </asp:BoundField>
+                                <asp:BoundField DataField="UTCLogoff" HeaderText="Log off" SortExpression="UTCLogoff" >
+                                    <ItemStyle Width="70px" />
+                                </asp:BoundField>
+                                <asp:BoundField DataField="OperatingSystemName" HeaderText="Operating System"
+                                    SortExpression="OperatingSystemName" >
+                                        <ItemStyle Width="250px" />
+                                </asp:BoundField>
+                                <asp:BoundField DataField="IPAddresses" HeaderText="IP Address" SortExpression="IPAddresses" >
+                                    <ItemStyle Width="100px" />
+                                </asp:BoundField>
+                            </Columns>
+                        </asp:GridView>
+                        <asp:SqlDataSource ID="SqlDataSource1" runat="server" ConnectionString="REDACTED" SelectCommand="SELECT '<a href=''Results.aspx?EventID=' + cast(ID as varchar(10)) + '''>' + Username + '</a>' AS 'Username', Domainname, EventDescription, ComputerName, CASE WHEN UTCLogonDateTime = '' THEN null ELSE DATEADD(MINUTE, CAST(SUBSTRING(UTCLogonDateTime, 22, 4) as int), CONVERT(DateTime, LEFT(UTCLogonDateTime, 4) + '-' + SUBSTRING(UTCLogonDateTime, 5,2 ) + '-' + SUBSTRING(UTCLogonDateTime, 7, 2) + ' ' + SUBSTRING(UTCLogonDateTime, 9, 2) + ':' + SUBSTRING(UTCLogonDateTime, 11, 2) + ':' + SUBSTRING(UTCLogonDateTime, 13, 2), 121)) END AS 'UTCLogon', CASE WHEN UTCLogoffDateTime = '' THEN null ELSE DATEADD(MINUTE, CAST(SUBSTRING(UTCLogoffDateTime, 22, 4) as int), CONVERT(DateTime, LEFT(UTCLogoffDateTime, 4) + '-' + SUBSTRING(UTCLogoffDateTime, 5,2 ) + '-' + SUBSTRING(UTCLogoffDateTime, 7, 2) + ' ' + SUBSTRING(UTCLogoffDateTime, 9, 2) + ':' + SUBSTRING(UTCLogoffDateTime, 11, 2) + ':' + SUBSTRING(UTCLogoffDateTime, 13, 2), 121)) END AS 'UTCLogoff', OperatingSystemName, IPAddresses, LEFT(UTCLogonDateTime, 8) AS 'ShortLogonDate', LEFT(UTCLogoffDateTime, 8) AS 'ShortLogoffDate' FROM tblLogonEvents"></asp:SqlDataSource>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </form>
+</body>
+</html>

@@ -1,0 +1,49 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Legacy source-control bindings
+*.scc
+*.vssscc
+*.vspscc
+
+# NuGet
+packages/
+
+
+# Secrets / credentials (never upload)
+*.pfx
+*.p12
+*.pem
+*.key
+.env
+**/appsettings.*.local.json
+# Logs and temp
+*.log
+*.tmp
+*.bak
+
+# Redacted originals (see *.example files)
+Test/frmTest.vb
+Broker/ProjectInstaller.Designer.vb
+Broker/clsUserInfo.vb
+Server Stuff/ActivityLog/Default.aspx
+Server Stuff/ActivityLog/Default.aspx.vb
+Server Stuff/ActivityLog/Results.aspx
+Server Stuff/ActivityLog/web.config
+Server Stuff/WebService/web.config
+LogBroker/ProjectInstaller.Designer.vb
+ActivityLogClient/ProjectInstaller.Designer.vb
+ActivityLogClient/clsUserInfo.vb
+Backup/Test/frmTest.vb
+Backup/Broker/ProjectInstaller.Designer.vb
+Backup/Broker/clsUserInfo.vb
+Backup/ActivityLogClient/ProjectInstaller.Designer.vb
+Backup/ActivityLogClient/clsUserInfo.vb

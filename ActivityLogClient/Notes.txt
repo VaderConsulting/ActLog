@@ -1,0 +1,6 @@
+Notes for Vista specific issues:
+http://blogs.msdn.com/astebner/archive/2006/08/12/696833.aspx
+http://blogs.msdn.com/astebner/archive/2006/10/23/mailbag-how-to-set-the-noimpersonate-flag-for-a-custom-action-in-visual-studio-2005.aspx
+http://wcf.netfx3.com/blogs/wcf_team_bloggers/archive/2007/05/04/installer-error-code-2869-on-windows-vista-and-how-to-correctly-use-the-quot-noimpersonate-quot-flag-for-custom-installer-actions-in-visual-studio-2005.aspx
+http://www.thearchitect.co.uk/weblog/archives/2007/05/000476.html
+

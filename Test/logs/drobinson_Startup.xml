@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<clsUserInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <EventDescription>Startup</EventDescription>
+  <Username>drobinson</Username>
+  <Domainname>TUSK</Domainname>
+  <UTCLogonDateTime>20070515082948.000000+480</UTCLogonDateTime>
+  <UTCLogoffDateTime />
+  <LogonServer>\\MAMMOTH02</LogonServer>
+  <Sitename>Default-First-Site-Name</Sitename>
+  <RemoteClientName />
+  <RemoteIPAddresses>
+    <string>fe80::5efe:192.168.197.1%21</string>
+    <string>fe80::5efe:192.168.116.1%23</string>
+    <string>fe80::5efe:192.168.222.1%23</string>
+    <string>fe80::3054:c1cf:82c0:feb9%13</string>
+    <string>fe80::71a0:4010:1f39:e05a%9</string>
+    <string>fe80::61f9:c944:668e:f8cd%20</string>
+    <string>fe80::9da0:8453:178f:6d5b%22</string>
+    <string>fe80::5efe:192.168.0.141%27</string>
+    <string>192.168.0.141</string>
+    <string>192.168.197.1</string>
+    <string>192.168.116.1</string>
+    <string>192.168.222.1</string>
+    <string>2001:0:4136:e390:3054:c1cf:82c0:feb9</string>
+  </RemoteIPAddresses>
+  <RemoteSessionName>Console</RemoteSessionName>
+  <SerialNumber>.HRG8P1S.CN486437331058.</SerialNumber>
+  <ModelNumber>Latitude D820</ModelNumber>
+  <OperatingSystemName>Microsoft® Windows Vista™ Ultimate </OperatingSystemName>
+</clsUserInfo>

@@ -1,0 +1,159 @@
+Imports System.Data
+Imports System.Data.SqlClient
+
+Partial Class _Default
+    Inherits System.Web.UI.Page
+
+    'record the last applied filter so that it can be reapplied each time the page is refreshed
+    Private gstrLastFilter As String = "Username = "REDACTED""
+    Private gblnSearchPerformed As Boolean = False
+
+    'the user has clicked the search button, so perform the search
+    Protected Sub cmdSearch_Click(ByVal sender As Object, ByVal e As System.EventArgs) Handles cmdSearch.Click
+
+        PerformSearch("New search initiated")
+    End Sub
+
+    'this subroutine handles the page_init event and is used to configure the page before any processing occurs
+    Protected Sub Page_Init(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Init
+
+        'ensure that the page isnt cached (to ensure latest information is always returned)
+        Response.Expires = 0
+        SqlDataSource1.FilterExpression = gstrLastFilter
+    End Sub
+
+    'when the user presses enter in the text-box, the default behaviour is no longer sent to the command button, so
+    'this event needs to perform the search as well
+    Protected Sub txtSearch_TextChanged(ByVal sender As Object, ByVal e As System.EventArgs) Handles txtSearch.TextChanged
+        PerformSearch("Search text altered")
+    End Sub
+
+    'this subroutine contains all of the search functionality and is called from a number of different
+    'events due to the changed behaviours of DotNet 2.0
+    '
+    'INPUT:
+    '   pstrActionDescription - A description of the event that is to be logged into the audit table
+    Private Sub PerformSearch(ByVal pstrActionDescription As String)
+
+        'define the local variables
+        Dim lstrFilter As String = ""
+
+        If gblnSearchPerformed = False Then
+            'do not allow the user to enter a blank string - if they want ALL records, they should use a wildcard search "*"
+            If Len(Me.txtSearch.Text) = 0 Then
+                lstrFilter = "Username = "REDACTED""
+                Me.txtSearch.Text = "Enter a search value"
+            Else
+
+                'if the user has not entered any wildcards in the text, it will be faster to use a direct comparison
+                Dim lstrComparisonMethod As String = ""
+                If InStr(Me.txtSearch.Text, "*") > 0 Or InStr(Me.txtSearch.Text, "%") > 0 Then
+                    lstrComparisonMethod = "LIKE"
+                Else
+                    lstrComparisonMethod = "="
+                End If
+
+                'determine the type of search that has been requested
+                Select Case Me.cboSearchType.SelectedValue
+                    Case "User"
+                        'perform a user search
+                        If Len(Me.txtSearch.Text) > 0 Then
+                            lstrFilter += " Username " & lstrComparisonMethod & " '" & Replace(Me.txtSearch.Text, "*", "%") & "' "
+                        End If
+
+                    Case "Computer"
+                        'perform a computer search
+                        lstrFilter += " ComputerName " & lstrComparisonMethod & " '" & Replace(Me.txtSearch.Text, "*", "%") & "' "
+
+                    Case "IP"
+                        'perform an IP Address search
+                        lstrFilter += " IPAddresses " & lstrComparisonMethod & " '" & Replace(Me.txtSearch.Text, "*", "%") & "' "
+
+                    Case "Description"
+                        'perform a description match
+                        lstrFilter += " EventDescription " & lstrComparisonMethod & " '" & Replace(Me.txtSearch.Text, "*", "%") & "' "
+                End Select
+
+                'check if the user wants to restrict by a start date
+                If Me.chkFromDate.Checked = True Then
+                    If Len(lstrFilter) > 0 Then
+                        lstrFilter += " AND "
+                    End If
+
+                    'check which date field the user is searching on
+                    Select Case cboDateField.SelectedValue
+                        Case "Log On date"
+                            lstrFilter += " ShortLogonDate >= '" & Format(Me.calStartDate.SelectedDate, "yyyyMMdd") & "' "
+                        Case "Log Off date"
+                            lstrFilter += " ShortLogoffDate >= '" & Format(Me.calStartDate.SelectedDate, "yyyyMMdd") & "' "
+                        Case Else
+                            lstrFilter += " (ShortLogonDate >= '" & Format(Me.calStartDate.SelectedDate, "yyyyMMdd") & "' OR ShortLogoffDate >= '" & Format(Me.calStartDate.SelectedDate, "yyyyMMdd") & "') "
+                    End Select
+                End If
+
+                'check if the user wants to restrict by an end date
+                If Me.chkToDate.Checked = True Then
+                    If Len(lstrFilter) > 0 Then
+                        lstrFilter += " AND "
+                    End If
+
+                    'check which date field the user is searching on
+                    Select Case cboDateField.SelectedValue
+                        Case "Log On date"
+                            lstrFilter += " ShortLogonDate <= '" & Format(Me.calEndDate.SelectedDate, "yyyyMMdd") & "' "
+                        Case "Log Off date"
+                            lstrFilter += " ShortLogoffDate <= '" & Format(Me.calEndDate.SelectedDate, "yyyyMMdd") & "' "
+                        Case Else
+                            lstrFilter += " (ShortLogonDate <= '" & Format(Me.calEndDate.SelectedDate, "yyyyMMdd") & "' OR ShortLogoffDate <= '" & Format(Me.calEndDate.SelectedDate, "yyyyMMdd") & "') "
+                    End Select
+                End If
+            End If
+
+            'retrieve the user account and save a record into the audit log table
+            If (lstrFilter <> "Username = "REDACTED"") Then
+                Dim UserAccount As String = Request.ServerVariables("LOGON_USER")
+                Dim myConnection As New SqlConnection(ConfigurationManager.ConnectionStrings("LALConnectionString").ConnectionString)
+                Dim myCommand As New SqlCommand("INSERT INTO tblWebAccessAudit (Description, AuditDate, AuditBy) VALUES ('" & pstrActionDescription & ": [" & Left(Trim(Replace(lstrFilter, "'", "''")), 200) & "]', GETDATE(), '" & UserAccount & "')", myConnection)
+                myCommand.Connection.Open()
+                myCommand.ExecuteNonQuery()
+                myCommand.Connection.Close()
+            End If
+
+            'apply the search parameters to the grid
+            GridView1.PageSize = Me.cboRowLimit.SelectedValue
+            SqlDataSource1.FilterExpression = lstrFilter
+            gstrLastFilter = SqlDataSource1.FilterExpression
+            gblnSearchPerformed = True
+        End If
+    End Sub
+
+    'this subroutine will ensure that the correct information is displayed when the sort order is changed
+    Protected Sub GridView1_Sorted(ByVal sender As Object, ByVal e As System.EventArgs) Handles GridView1.Sorted
+
+        'define the local variables
+        Dim Col As WebControls.DataControlField
+
+        'for some reason, the grid forgets any search params when the sort occurs, so need to re-apply the search
+        PerformSearch("Grid resorted - " & GridView1.SortExpression & "(" & GridView1.SortDirection & ")")
+
+        'loop through all columns and indicate the sorted column appropriately
+        For Each Col In GridView1.Columns
+            If Col.SortExpression = GridView1.SortExpression Then
+                If GridView1.SortDirection = SortDirection.Ascending Then
+                    Col.HeaderStyle.CssClass = "Asc"
+                Else
+                    Col.HeaderStyle.CssClass = "Desc"
+                End If
+            Else
+                Col.HeaderStyle.CssClass = ""
+            End If
+        Next Col
+    End Sub
+
+    'this subroutine will handle the event that is raised when the user attempts to navigate to a different page of the gridview control.
+    'The gridview control seems to forget the previous search filters on postback, so this subroutine needs to re-apply the search params.
+    Protected Sub GridView1_PageIndexChanging(ByVal sender As Object, ByVal e As System.Web.UI.WebControls.GridViewPageEventArgs) Handles GridView1.PageIndexChanging
+
+        PerformSearch("Grid page index changed")
+    End Sub
+End Class

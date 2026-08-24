@@ -1,0 +1,454 @@
+Imports Microsoft.Win32
+Imports System.DirectoryServices
+Imports System.Xml.Serialization
+Imports System.IO
+Imports System.Diagnostics
+
+Public Class clsUserInfoList
+    Inherits System.Collections.ArrayList
+
+    Public Overloads Function Contains(ByVal oUser As clsUserInfo) As Boolean
+        Dim x As Object
+
+        For Each x In Me
+            If oUser.UniqueID = x.UniqueID Then Return True
+        Next
+
+        Return False
+    End Function
+
+End Class
+
+<Serializable()> _
+Public Class clsUserInfo
+
+    Private mstrUsername As String = ""
+    Private mstrDomainname As String = ""
+    Private mstrComputername As String = ""
+    Private mstrUTCLogonDateTime As String = ""
+    Private mstrUTCLogoffDateTime As String = ""
+    Private mstrLogonServer As String = ""
+    Private mstrSitename As String = ""
+    Private mstrRemoteSessionName As String = ""
+    Private mstrRemoteClientName As String = ""
+    Private mstrOperatingSystemName As String = ""
+    Private mstrSerialNumber As String = ""
+    Private mstrModelNumber As String = ""
+    Private mstrManufacturer As String = ""
+    Private mstrEventDescription As String = ""
+    Private mstrIPAddresses() As String
+    Private mstrLogFilePath As String = ""
+    Private mstrVersion As String = "1.6"
+
+    Public Sub New()
+        MyBase.New()
+        Randomize()
+
+        mstrLogFilePath = My.Application.Info.DirectoryPath & "\Logs"
+    End Sub
+
+    Public ReadOnly Property UniqueID() As String
+        Get
+            Return mstrUsername & ";" & mstrDomainname & ";" & mstrRemoteSessionName & ";" & mstrRemoteClientName
+        End Get
+    End Property
+
+    Public Property EventDescription() As String
+        Get
+            Return mstrEventDescription
+        End Get
+        Set(ByVal value As String)
+            mstrEventDescription = value
+        End Set
+    End Property
+
+    Public Property Username() As String
+        Get
+            Return mstrUsername
+        End Get
+        Set(ByVal value As String)
+            mstrUsername = value
+        End Set
+    End Property
+
+    Public Property Domainname() As String
+        Get
+            Return mstrDomainname
+        End Get
+        Set(ByVal value As String)
+            mstrDomainname = value
+        End Set
+    End Property
+
+    Public Property Computername() As String
+        Get
+            Return mstrComputername
+        End Get
+        Set(ByVal value As String)
+            mstrComputername = value
+        End Set
+    End Property
+
+    Public Property UTCLogonDateTime() As String
+        Get
+            Return mstrUTCLogonDateTime
+        End Get
+        Set(ByVal value As String)
+            mstrUTCLogonDateTime = value
+        End Set
+    End Property
+
+    Public Property UTCLogoffDateTime() As String
+        Get
+            Return mstrUTCLogoffDateTime
+        End Get
+        Set(ByVal value As String)
+            mstrUTCLogoffDateTime = value
+        End Set
+    End Property
+
+    Public Property LogonServer() As String
+        Get
+            Return mstrLogonServer
+        End Get
+        Set(ByVal value As String)
+            mstrLogonServer = value
+        End Set
+    End Property
+
+    Public Property Sitename() As String
+        Get
+            Return mstrSitename
+        End Get
+        Set(ByVal value As String)
+            mstrSitename = value
+        End Set
+    End Property
+
+    Public Property RemoteClientName() As String
+        Get
+            Return mstrRemoteClientName
+        End Get
+        Set(ByVal value As String)
+            mstrRemoteClientName = value
+        End Set
+    End Property
+
+    Public Property IPAddresses() As String()
+        Get
+            Return mstrIPAddresses
+        End Get
+        Set(ByVal value As String())
+            mstrIPAddresses = value
+        End Set
+    End Property
+
+    Public Property RemoteSessionName() As String
+        Get
+            Return mstrRemoteSessionName
+        End Get
+        Set(ByVal value As String)
+            mstrRemoteSessionName = value
+        End Set
+    End Property
+
+    Public Property SerialNumber() As String
+        Get
+            Return mstrSerialNumber
+        End Get
+        Set(ByVal value As String)
+            mstrSerialNumber = value
+        End Set
+    End Property
+
+    Public Property ModelNumber() As String
+        Get
+            Return mstrModelNumber
+        End Get
+        Set(ByVal value As String)
+            mstrModelNumber = value
+        End Set
+    End Property
+
+    Public Property Manufacturer() As String
+        Get
+            Return mstrManufacturer
+        End Get
+        Set(ByVal value As String)
+            mstrManufacturer = value
+        End Set
+    End Property
+
+    Public Property OperatingSystemName() As String
+        Get
+            Return mstrOperatingSystemName
+        End Get
+        Set(ByVal value As String)
+            mstrOperatingSystemName = value
+        End Set
+    End Property
+
+    Public Property Version() As String
+        Get
+            Return mstrVersion
+        End Get
+        Set(ByVal value As String)
+            mstrVersion = value
+        End Set
+    End Property
+
+    Public ReadOnly Property LogFilePath() As String
+        Get
+            Return mstrLogFilePath
+        End Get
+    End Property
+
+    Public Sub DetermineLastLogonDateTime()
+        Dim strLocalLogonData As String = ""
+        Dim strUTCLogonData As String = ""
+        Dim strDateTime As String = "16200101000000.000000+000"
+
+        strDateTime = GetWMIData("Select name,lastlogon from Win32_NetworkLoginProfile")
+        mstrUTCLogonDateTime = strDateTime
+    End Sub
+
+    Public Sub DetermineLastLogoffDateTime()
+        Dim strLocalLogoffData As String = ""
+        Dim strUTCLogoffData As String = ""
+        Dim strDateTime As String = "16200101000000.000000+000"
+
+        strDateTime = GetCurrentWMIDateTime()
+        mstrUTCLogoffDateTime = strDateTime
+    End Sub
+
+    Public Sub DetermineLogonData(ByVal strSID As String)
+        Dim USERSRegKey As RegistryKey = Registry.Users
+        Dim RegKey As RegistryKey = USERSRegKey.OpenSubKey(strSID, False)
+        Dim RegKeyKeyList As String()
+
+        Try
+
+            RegKeyKeyList = RegKey.GetSubKeyNames()
+
+            For Each UserRegKey As String In RegKeyKeyList
+                If UserRegKey.ToString = "Volatile Environment" Then ' If there are one or more values in here, then this is a logged on user
+
+                    Try
+                        ' We have to do different things depending upon the Operating System
+                        If mstrOperatingSystemName.Trim.ToLower.Contains("vista") Then
+                            mstrLogonServer = My.Computer.Registry.GetValue("HKEY_USERS\" & strSID.ToString & "\Volatile Environment", "LOGONSERVER", "")
+                            Dim ConsoleKey As RegistryKey = USERSRegKey.OpenSubKey(strSID & "\Volatile Environment")
+                            Dim strConsoleNumbers() As String = ConsoleKey.GetSubKeyNames()
+
+                            ' Because Vista has any number of users logged onto the console (due to Fast User Switching),
+                            ' we have to treat it differently
+                            For i As Integer = 0 To UBound(strConsoleNumbers)
+                                mstrRemoteSessionName = My.Computer.Registry.GetValue("HKEY_USERS\" & strSID.ToString & "\Volatile Environment\" & strConsoleNumbers(i), "SESSIONNAME", "")
+                                mstrRemoteClientName = My.Computer.Registry.GetValue("HKEY_USERS\" & strSID.ToString & "\Volatile Environment\" & strConsoleNumbers(i), "CLIENTNAME", "")
+                            Next i
+                        Else
+                            mstrLogonServer = My.Computer.Registry.GetValue("HKEY_USERS\" & strSID.ToString & "\Volatile Environment", "LOGONSERVER", "")
+                            mstrRemoteSessionName = My.Computer.Registry.GetValue("HKEY_USERS\" & strSID.ToString & "\Volatile Environment", "SESSIONNAME", "")
+                            mstrRemoteClientName = My.Computer.Registry.GetValue("HKEY_USERS\" & strSID.ToString & "\Volatile Environment", "CLIENTNAME", "")
+                        End If
+                    Catch
+                        ' Catch-all just in case
+                        Console.WriteLine("Error opening Registry Key")
+                        WriteToEventLog("Error opening registry key", "Activity Log Client", EventLogEntryType.Warning)
+                    End Try
+
+                End If
+            Next
+        Catch
+            Console.WriteLine("Failed to retrieve user details for user " & strSID)
+            WriteToEventLog("Failed to retrieve user details for user " & strSID, "Activity Log Client", EventLogEntryType.Warning)
+        End Try
+
+    End Sub
+
+    Public Sub GetIPAddresses()
+        Dim ipIPAddresses() As System.Net.IPAddress
+
+        ipIPAddresses = System.Net.Dns.GetHostAddresses(My.Computer.Name)
+        Try
+            ' Copy these IP Addresses (of type IPAddress) to the IP Address array (of strings)
+            If ipIPAddresses.Length > 0 Then
+                For i As Integer = 0 To UBound(ipIPAddresses)
+                    ReDim Preserve mstrIPAddresses(i)
+                    mstrIPAddresses(i) = ipIPAddresses(i).ToString
+                Next
+            End If
+        Catch
+        End Try
+
+    End Sub
+
+    Private Function GetWMIData(ByVal strQuery As String) As String
+        Dim oWMIService As Object
+        Dim colItems As Object
+        Dim oItem As Object
+        Dim strDateTime As String = "16200101000000.000000+000"
+
+        ' Get most recent Logon time
+        oWMIService = GetObject("winmgmts:\\.\root\cimv2")
+        colItems = oWMIService.ExecQuery(strQuery)
+        For Each oItem In colItems
+            If oItem.name.ToString.ToLower.Contains(mstrUsername.ToLower) Then
+                ' This time is UTC not local
+                ' This string is a WMI formatted string
+                If strQuery.Contains("logon") Then
+                    strDateTime = oItem.lastlogon.ToString.Trim
+                Else
+                    ' Microsoft does not fill this value
+                    'strDateTime = oItem.lastlogoff.ToString.Trim
+                    ' So we have to return an approximation.  The best approximate we can give is the CURRENT Date\Time
+                    strDateTime = GetCurrentWMIDateTime
+                End If
+            End If
+        Next
+
+        Return strDateTime
+    End Function
+
+    Private Function GetCurrentWMIDateTime() As String
+        Dim strDateTime As String
+        Dim strSearch As String
+
+        If mstrUTCLogonDateTime.Contains("+") Then
+            strSearch = "+"
+        Else
+            strSearch = "-"
+        End If
+
+        strDateTime = ""
+
+        strDateTime = ZeroPadLeft(Date.UtcNow.Year.ToString, 4) & _
+                      ZeroPadLeft(Date.UtcNow.Month.ToString, 2) & _
+                      ZeroPadLeft(Date.UtcNow.Day, 2) & _
+                      ZeroPadLeft(Date.UtcNow.Hour.ToString, 2) & _
+                      ZeroPadLeft(Date.UtcNow.Minute.ToString, 2) & _
+                      ZeroPadLeft(Date.UtcNow.Second.ToString, 2) & _
+                      ".000000" & _
+                      strSearch & _
+                      Right(mstrUTCLogonDateTime, Len(mstrUTCLogonDateTime) - InStr(mstrUTCLogonDateTime, strSearch))
+
+        Return strDateTime
+    End Function
+
+    Private Function ZeroPadLeft(ByVal strToBeFormatted As String, ByVal intFinalLength As Integer) As String
+
+        Do Until Len(strToBeFormatted) = intFinalLength
+            strToBeFormatted = "0" & strToBeFormatted
+        Loop
+
+        Return strToBeFormatted
+
+    End Function
+
+    Public Sub Clear()
+        mstrEventDescription = ""
+        mstrUsername = ""
+        mstrDomainname = ""
+        mstrComputername = ""
+        mstrUTCLogonDateTime = "16200101000000.000000+000"
+        mstrUTCLogoffDateTime = "16200101000000.000000+000"
+        mstrLogonServer = ""
+        mstrRemoteSessionName = ""
+        mstrRemoteClientName = ""
+        mstrOperatingSystemName = ""
+        mstrSerialNumber = ""
+        mstrModelNumber = ""
+        mstrManufacturer = ""
+        mstrSitename = ""
+        mstrLogFilePath = ""
+        mstrVersion = ""
+        Erase mstrIPAddresses
+
+    End Sub
+
+    Public Function Clone() As clsUserInfo
+        Dim oClone As New clsUserInfo
+
+        oClone.EventDescription = mstrEventDescription
+        oClone.UTCLogoffDateTime = mstrUTCLogoffDateTime
+        oClone.UTCLogonDateTime = mstrUTCLogonDateTime
+        oClone.LogonServer = mstrLogonServer
+        oClone.Sitename = mstrSitename
+        oClone.RemoteClientName = mstrRemoteClientName
+        oClone.IPAddresses = mstrIPAddresses
+        oClone.RemoteSessionName = mstrRemoteSessionName
+        oClone.Username = mstrUsername
+        oClone.Domainname = mstrDomainname
+        oClone.Computername = mstrComputername
+        oClone.OperatingSystemName = mstrOperatingSystemName
+        oClone.SerialNumber = mstrSerialNumber
+        oClone.ModelNumber = mstrModelNumber
+        oClone.Manufacturer = mstrManufacturer
+        oClone.Version = mstrVersion
+
+        ' mstrLogFilePath is readonly, so we do NOT set it here.
+
+        Return oClone
+    End Function
+
+    Public Sub Serialize()
+        ' Create an instance of the XmlSerializer specifying type.
+        Dim Serializer As New XmlSerializer(GetType(clsUserInfo))
+        Dim strLogFilePath As String = ""
+        Dim strGUID As Guid =REDACTED
+
+        Try
+
+            ' Check for the existance of the Logs directory.  Create if not found.
+            If Not My.Computer.FileSystem.DirectoryExists(My.Application.Info.DirectoryPath & "\Logs") Then
+                My.Computer.FileSystem.CreateDirectory(My.Application.Info.DirectoryPath & "\Logs")
+            End If
+
+            strLogFilePath = My.Application.Info.DirectoryPath & "\Logs\" & strGUID.ToString & "_" & Me.Username & "_" & Me.EventDescription & ".xml"
+
+            ' Create a StreamWriter to write the file.
+            Dim writer As New StreamWriter(strLogFilePath)
+
+            ' Use the serialize method to save the object's state.
+            Serializer.Serialize(writer, Me)
+
+            ' Close the file.
+            writer.Close()
+        Catch ex As Exception
+        End Try
+    End Sub
+
+    Private Function RandomString(ByVal iLength As Integer) As String
+        Dim strRandom As String = ""
+        Dim strChar As String = ""
+
+        For i As Integer = 1 To iLength
+            strChar = Chr(Rnd() * 25 + 65)
+            strRandom = strRandom & strChar
+        Next
+
+        Return strRandom
+    End Function
+
+    Private Function WriteToEventLog(ByVal Entry As String, Optional ByVal AppName As String = "Activity Log Client", Optional ByVal EventType As EventLogEntryType = EventLogEntryType.Information, Optional ByVal LogName As String = "Application") As Boolean
+        Dim objEventLog As New EventLog()
+
+        Try
+            'Register the App as an Event Source
+            If Not Diagnostics.EventLog.SourceExists(AppName) Then
+                Diagnostics.EventLog.CreateEventSource(AppName, LogName)
+            End If
+
+            objEventLog.Source = AppName
+
+            'WriteEntry is overloaded; this is one of 10 ways to call it
+            objEventLog.WriteEntry(Entry, EventType)
+            Return True
+        Catch Ex As Exception
+            Return False
+
+        End Try
+
+    End Function
+
+End Class

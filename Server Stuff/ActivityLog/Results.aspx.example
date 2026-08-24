@@ -1,0 +1,35 @@
+<%@ Page Language="VB" AutoEventWireup="false" CodeFile="Results.aspx.vb" Inherits="Results" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<head runat="server">
+    <title>Search Results</title>
+    <style type="text/css">
+    body
+    {
+        font-family:    arial,verdana,helvetica;
+        font-size:      8pt;
+    }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+    <div>
+        <h3>Record Details</h3>
+        <asp:DetailsView ID="DetailsView1" runat="server" Height="50px" Width="750px" DataSourceID="SqlDataSource1" CellPadding="4" ForeColor="#333333" GridLines="None">
+            <FooterStyle BackColor="#507CD1" Font-Bold="True" ForeColor="White" />
+            <CommandRowStyle BackColor="#D1DDF1" Font-Bold="True" />
+            <EditRowStyle BackColor="#2461BF" />
+            <RowStyle BackColor="#EFF3FB" />
+            <PagerStyle BackColor="#2461BF" ForeColor="White" HorizontalAlign="Center" />
+            <FieldHeaderStyle BackColor="#DEE8F5" Font-Bold="True" />
+            <HeaderStyle BackColor="#507CD1" Font-Bold="True" ForeColor="White" />
+            <AlternatingRowStyle BackColor="White" />
+        </asp:DetailsView>
+        <asp:SqlDataSource ID="SqlDataSource1" runat="server" ConnectionString="REDACTED"></asp:SqlDataSource>
+        </div>
+    </form>
+    <input type="button" value="Done" onclick="window.open('Default.aspx', '_self')" />
+</body>
+</html>
