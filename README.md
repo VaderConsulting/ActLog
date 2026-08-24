@@ -1,19 +1,31 @@
 # ActLog
 
-Tracks User Logon and Logoff events
+Tracks User Logon and Logoff events This is a historical working copy from Dave Robinson / VaderConsulting, published so the project can be found and understood from GitHub.
 
-## Contents
+**Source last updated:** 2009-01-17  
+**Language:** VB.NET  
+**Target:** not recorded  
+**Output:** WinExe
 
-- `ActLog.sln`
-- `LogBroker/LogBroker.sln`
-- `Backup/ActLog.sln`
-- `Test/Test.vbproj`
-- `Broker/Broker.vbproj`
-- `LogBroker/LogBroker.vbproj`
-- `ActivityLogClient/ActivityLogClient.vbproj`
-- `Backup/Test/Test.vbproj`
-- `Backup/Broker/Broker.vbproj`
-- `Backup/ActivityLogClient/ActivityLogClient.vbproj`
+## What it is
+
+Tracks User Logon and Logoff events This is a historical working copy from Dave Robinson / VaderConsulting, published so the project can be found and understood from GitHub.
+
+## Solution structure
+
+| Project | Language | Path |
+|---------|----------|------|
+| `Test` | VB.NET | `Test/Test.vbproj` |
+| `Broker` | VB.NET | `Broker/Broker.vbproj` |
+| `LogBroker` | VB.NET | `LogBroker/LogBroker.vbproj` |
+| `ActivityLogClient` | VB.NET | `ActivityLogClient/ActivityLogClient.vbproj` |
+| `Test` | VB.NET | `Backup/Test/Test.vbproj` |
+| `Broker` | VB.NET | `Backup/Broker/Broker.vbproj` |
+| `ActivityLogClient` | VB.NET | `Backup/ActivityLogClient/ActivityLogClient.vbproj` |
+
+## How to open
+
+Open `ActLog.sln` in Visual Studio.
 
 ## Attribution and provenance
 
