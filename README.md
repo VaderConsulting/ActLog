@@ -27,6 +27,10 @@ Tracks User Logon and Logoff events This is a historical working copy from Dave 
 
 Open `ActLog.sln` in Visual Studio.
 
+## Requirements
+
+- Visual Studio 2005 to 2008
+
 ## Attribution and provenance
 
 - **Assembly company:** Empired Limited
