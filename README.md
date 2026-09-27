@@ -1,31 +1,21 @@
 # ActLog
 
-Tracks User Logon and Logoff events This is a historical working copy from Dave Robinson / VaderConsulting, published so the project can be found and understood from GitHub.
+VB.NET suite that tracks user logon and logoff events. Broker and LogBroker services collect activity; ActivityLogClient is the client front end. Backup trees of earlier project versions sit alongside the live projects.
 
-**Source last updated:** 2009-01-17  
-**Language:** VB.NET  
-**Target:** not recorded  
-**Output:** WinExe
-
-## What it is
-
-Tracks User Logon and Logoff events This is a historical working copy from Dave Robinson / VaderConsulting, published so the project can be found and understood from GitHub.
+**Source last updated:** 2009-01-17 · **Language:** VB.NET · **Target:** .NET Framework (VS 2005/2008 era) · **Output:** WinExe / libraries
 
 ## Solution structure
 
-| Project | Language | Path |
-|---------|----------|------|
-| `Test` | VB.NET | `Test/Test.vbproj` |
-| `Broker` | VB.NET | `Broker/Broker.vbproj` |
-| `LogBroker` | VB.NET | `LogBroker/LogBroker.vbproj` |
-| `ActivityLogClient` | VB.NET | `ActivityLogClient/ActivityLogClient.vbproj` |
-| `Test` | VB.NET | `Backup/Test/Test.vbproj` |
-| `Broker` | VB.NET | `Backup/Broker/Broker.vbproj` |
-| `ActivityLogClient` | VB.NET | `Backup/ActivityLogClient/ActivityLogClient.vbproj` |
+| Project | Language | Type | Purpose |
+|---------|----------|------|---------|
+| `Broker` (`Broker/Broker.vbproj`) | VB.NET | Library/service | Logon/logoff event broker |
+| `LogBroker` (`LogBroker/LogBroker.vbproj`) | VB.NET | Library/service | Logging broker companion |
+| `ActivityLogClient` (`ActivityLogClient/ActivityLogClient.vbproj`) | VB.NET | WinExe | Client UI for activity log |
+| `Test` (`Test/Test.vbproj`) | VB.NET | WinExe | Test harness |
 
 ## How to open
 
-Open `ActLog.sln` in Visual Studio.
+Open `ActLog.sln` in Visual Studio 2005 or 2008.
 
 ## Requirements
 
@@ -33,9 +23,9 @@ Open `ActLog.sln` in Visual Studio.
 
 ## Attribution and provenance
 
-- **Assembly company:** Empired Limited
-- **Assembly copyright:** Copyright ©  2007
+Working copy from my Historical Dev folder `ActLog`.
+Assembly company: Empired Limited. Assembly copyright: Copyright © 2007.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT © 2026 VaderConsulting for Dave Robinson's code. See `LICENSE`.
